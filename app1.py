@@ -1,12 +1,12 @@
 import streamlit as st
 import pandas as pd
-from pulp import LpMaximize, LpProblem, LpVariable, lpSum, GLPK_CMD, LpStatus
+from pulp import LpMaximize, LpProblem, LpVariable, lpSum, COIN_CMD, LpStatus
 
 # Load player data from a CSV file
 @st.cache
 def load_player_data(file_path):
     players = pd.read_csv(file_path)
-    players.columns = players.columns.str.strip()
+    players.columns = players.columns.str.strip()  # Remove extra spaces in column names
     players = players.rename(columns={
         "Player": "name",
         "Position": "position",
@@ -47,8 +47,8 @@ def optimize_lineup(players, salary_cap, roster_size):
     problem += lpSum(player_vars[row["name"]] for _, row in players.iterrows() if "PF" in row["positions"]) >= 1
     problem += lpSum(player_vars[row["name"]] for _, row in players.iterrows() if "C" in row["positions"]) >= 1
 
-    # Solve the problem
-    problem.solve(GLPK_CMD(msg=False))
+    # Solve the problem using COIN_CMD solver
+    problem.solve(COIN_CMD(msg=False))
 
     # Return the lineup if optimal
     if LpStatus[problem.status] == "Optimal":
@@ -72,6 +72,7 @@ uploaded_file = st.sidebar.file_uploader("Upload Player Data CSV", type="csv")
 
 if uploaded_file:
     try:
+        # Load and process player data
         players = load_player_data(uploaded_file)
         players = generate_projections(players, minutes_weight, usage_weight)
         st.write("### Player Pool with Projections")
@@ -88,8 +89,6 @@ if uploaded_file:
             else:
                 st.write("No valid lineup found. Adjust the salary cap or roster size.")
     except ValueError as e:
-        st.error(e)
+        st.error(f"Error processing player data: {e}")
 else:
     st.info("Upload a CSV file to get started.")
-
-
